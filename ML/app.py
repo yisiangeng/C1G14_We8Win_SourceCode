@@ -1,8 +1,8 @@
 # from predictor import train_forecast_model
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .loader import load_data
-from .processor import aggregate_week
+from loader import load_data
+from processor import aggregate_week
 from datetime import datetime, timedelta 
 import pandas as pd
 import os
