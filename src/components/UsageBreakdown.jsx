@@ -3,45 +3,40 @@ import { Bar, Line } from 'react-chartjs-2';
 import { ArrowLeft, Calendar, Clock, PieChart, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 const UsageBreakdown = ({ setActiveTab }) => {
+
+
     // State
-    const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    const [selectedBarDate, setSelectedBarDate] = useState(null); // Track explicitly selected bar
-    const [selectedHour, setSelectedHour] = useState(null);
-    const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, 1 = previous week, etc.
-    // Use selectedDate for hourly view date as well, but keep format consistent
-    // We need a full date string YYYY-MM-DD for the date picker
+    const [weekOffset, setWeekOffset] = useState(0);
+    const [energyData, setEnergyData] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const [selectedBarDate, setSelectedBarDate] = useState(null);
+    const [selectedDate, setSelectedDate] = useState('');
     const [hourlyViewDate, setHourlyViewDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedHour, setSelectedHour] = useState(null);
 
-    // Initial breakdown state
-    const [breakdownData, setBreakdownData] = useState({
-        AC: 45,
-        Kitchen: 30,
-        Laundry: 15,
-        Other: 10
-    });
-
-    // Comparison breakdown state
+    const [breakdownData, setBreakdownData] = useState({ AC: 0, Kitchen: 0, Laundry: 0, Other: 0 });
     const [comparisonBreakdownData, setComparisonBreakdownData] = useState(null);
 
-    // --- Static Data Definition ---
+    const getMondayByOffset = (weekOffset) => {
+        // HARD-CODE dataset's latest Monday
+        const referenceMonday = new Date("2007-12-16");
+        const monday = new Date(referenceMonday);
+        monday.setDate(referenceMonday.getDate() - weekOffset * 7);
+        return monday.toISOString().split("T")[0];
+    };
 
-    // Helper to get dates for a specific week offset
     const getWeekDates = (offset) => {
         const days = [];
-        const today = new Date();
-        // Adjust today by offset weeks (offset * 7 days)
-        today.setDate(today.getDate() - (offset * 7));
+        const monday = new Date(getMondayByOffset(offset)); // Start from Monday
 
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
             days.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         }
         return days;
     };
-
-    const weekLabels = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
-    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
     // Pseudo-random generator for consistent data based on string seed
     const pseudoRandom = (seed) => {
@@ -55,21 +50,47 @@ const UsageBreakdown = ({ setActiveTab }) => {
     };
 
     // Define static weekly data structure for lookup
-    const generateWeeklyData = (labels, offset) => {
-        const data = {};
-        labels.forEach((date, i) => {
-            const seed = date + offset; // Unique seed per date and week
-            data[date] = {
-                AC: 20 + Math.floor(pseudoRandom(seed + 'AC') * 10),
-                Kitchen: 15 + Math.floor(pseudoRandom(seed + 'Kitchen') * 8),
-                Laundry: 10 + Math.floor(pseudoRandom(seed + 'Laundry') * 5),
-                Other: 5 + Math.floor(pseudoRandom(seed + 'Other') * 3)
-            };
-        });
-        return data;
-    };
+    // const generateWeeklyData = (labels, offset) => {
+    //     const data = {};
+    //     labels.forEach((date, i) => {
+    //         const seed = date + offset; // Unique seed per date and week
+    //         data[date] = {
+    //             AC: 20 + Math.floor(pseudoRandom(seed + 'AC') * 10),
+    //             Kitchen: 15 + Math.floor(pseudoRandom(seed + 'Kitchen') * 8),
+    //             Laundry: 10 + Math.floor(pseudoRandom(seed + 'Laundry') * 5),
+    //             Other: 5 + Math.floor(pseudoRandom(seed + 'Other') * 3)
+    //         };
+    //     });
+    //     return data;
+    // };
 
-    const weeklyDataMap = useMemo(() => generateWeeklyData(weekLabels, weekOffset), [weekLabels, weekOffset]);
+    // const weeklyDataMap = useMemo(() => generateWeeklyData(weekLabels, weekOffset), [weekLabels, weekOffset]);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            const startDate = getMondayByOffset(weekOffset);
+
+            try {
+                const res = await fetch(
+                    `http://127.0.0.1:8000/get_energy_performance?start_date=${startDate}`
+                );
+                const data = await res.json();
+                setEnergyData(data);
+            } catch (err) {
+                console.log("Fetch error:", err);
+                setEnergyData([]);
+            }
+            setLoading(false);
+        };
+
+        loadData();
+    }, [weekOffset]);
+
+    const weekLabels = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
+    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+
 
     // Define static hourly data structure for lookup
     const generateHourlyData = (dateStr) => {
@@ -100,36 +121,49 @@ const UsageBreakdown = ({ setActiveTab }) => {
     }), []);
 
     // Chart Data Objects (Visuals)
+    // Chart Data Objects (Visuals)
     const weeklyChartData = {
         labels: weekLabels,
         datasets: [
             {
                 label: 'AC',
-                data: weekLabels.map(date => weeklyDataMap[date].AC),
+                data: weekLabels.map(date => {
+                    const dayData = energyData.find(d => {
+                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return dDate === date;
+                    });
+                    return dayData ? dayData.Sub_metering_3 : 0;
+                }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#0d6efd' : 'rgba(13, 110, 253, 0.3)'),
                 stack: 'Stack 0',
             },
             {
                 label: 'Kitchen',
-                data: weekLabels.map(date => weeklyDataMap[date].Kitchen),
+                data: weekLabels.map(date => {
+                    const dayData = energyData.find(d => {
+                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return dDate === date;
+                    });
+                    return dayData ? dayData.Sub_metering_1 : 0;
+                }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#ffc107' : 'rgba(255, 193, 7, 0.3)'),
                 stack: 'Stack 0',
             },
             {
                 label: 'Laundry',
-                data: weekLabels.map(date => weeklyDataMap[date].Laundry),
+                data: weekLabels.map(date => {
+                    const dayData = energyData.find(d => {
+                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return dDate === date;
+                    });
+                    return dayData ? dayData.Sub_metering_2 : 0;
+                }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#198754' : 'rgba(25, 135, 84, 0.3)'),
                 stack: 'Stack 0',
-            },
-            {
-                label: 'Other',
-                data: weekLabels.map(date => weeklyDataMap[date].Other),
-                backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#6c757d' : 'rgba(108, 117, 125, 0.3)'),
-                stack: 'Stack 0',
-                borderRadius: { topLeft: 4, topRight: 4 },
             }
         ]
     };
+
 
     const hourlyChartData = {
         labels: hourLabels,
@@ -203,8 +237,18 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 setSelectedDate(clickedDate);
 
                 // Update breakdown data
-                if (weeklyDataMap[clickedDate]) {
-                    setBreakdownData(weeklyDataMap[clickedDate]);
+                const selectedDayData = energyData.find(d => {
+                    const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return dDate === clickedDate;
+                });
+
+                if (selectedDayData) {
+                    setBreakdownData({
+                        AC: selectedDayData.Sub_metering_3,
+                        Kitchen: selectedDayData.Sub_metering_1,
+                        Laundry: selectedDayData.Sub_metering_2,
+                        Other: 0
+                    });
                     // Set comparison data to Last Month Average
                     setComparisonBreakdownData(lastMonthAverage);
                 }

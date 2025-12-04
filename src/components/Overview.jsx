@@ -8,6 +8,9 @@ import {
 
 const Overview = ({ setActiveTab }) => {
     const [date, setDate] = useState(new Date());
+    const [energyData, setEnergyData] = useState(null);
+    const [energyPerformance, setEnergyPerformance] = useState(null);
+    const [subMeterDonut, setSubMeterDonut] = useState([]);
 
     useEffect(() => {
         const timer = setInterval(() => setDate(new Date()), 60000);
@@ -21,6 +24,48 @@ const Overview = ({ setActiveTab }) => {
         condition: 'Sunny',
         isRaining: false
     };
+
+    // --- API Data ---
+
+    useEffect(() => {
+        const loadAll = async () => {
+            try {
+                const [perfRes, weeklyRes] = await Promise.all([
+                    fetch("http://127.0.0.1:8000/get_energy_performance?start_date=2007-12-01"),
+                    fetch("http://127.0.0.1:8000/compare_weeks?start=2007-12-01")
+                ]);
+
+                const perfData = await perfRes.json();
+                const weeklyData = await weeklyRes.json();
+
+                const transformed = {
+                    AC: perfData.map(d => d.Sub_metering_3),
+                    Kitchen: perfData.map(d => d.Sub_metering_1),
+                    Laundry: perfData.map(d => d.Sub_metering_2),
+                };
+                const meterArray = [
+                    weeklyData.this_week.sub_metering_1,
+                    weeklyData.this_week.sub_metering_2,
+                    weeklyData.this_week.sub_metering_3
+                ];
+
+                // Calculate total
+                const total = meterArray.reduce((sum, value) => sum + value, 0);
+                // Convert each value to percentage
+                const meterPercentages = meterArray.map(value => ((value / total) * 100).toFixed(1)); // 1 decimal place
+                console.log(meterPercentages);
+
+                setSubMeterDonut(meterPercentages);
+                setEnergyPerformance(transformed);
+                setEnergyData(weeklyData);
+            } catch (err) {
+                console.error("Error loading data:", err);
+            }
+        };
+
+        loadAll();
+    }, []);
+
 
     // --- Chart Configurations ---
     const commonOptions = {
@@ -43,13 +88,18 @@ const Overview = ({ setActiveTab }) => {
     };
 
     // Stacked Bar Chart for Weekly Performance
+    // Build last week avg array dynamically using state
+    const lastWeekAvgArray = energyData
+        ? Array(7).fill(energyData.this_week.sub_metering_avg ?? 0)
+        : Array(7).fill(0);
+
     const performanceData = {
         labels: getLast7Days(),
         datasets: [
             {
                 type: 'line',
                 label: 'Last Week Avg',
-                data: [42, 42, 42, 42, 42, 42, 42],
+                data: lastWeekAvgArray,
                 borderColor: '#fd7e14',
                 borderWidth: 2,
                 borderDash: [5, 5],
@@ -59,31 +109,23 @@ const Overview = ({ setActiveTab }) => {
             },
             {
                 label: 'AC',
-                data: [20, 18, 25, 15, 20, 12, 10],
+                data: energyPerformance?.AC ?? [],
                 backgroundColor: '#0d6efd',
                 stack: 'Stack 0',
                 order: 1
             },
             {
                 label: 'Kitchen',
-                data: [15, 12, 20, 10, 15, 10, 8],
+                data: energyPerformance?.Kitchen ?? [],
                 backgroundColor: '#ffc107',
                 stack: 'Stack 0',
                 order: 1
             },
             {
                 label: 'Laundry',
-                data: [10, 10, 10, 10, 5, 8, 8],
+                data: energyPerformance?.Laundry ?? [],
                 backgroundColor: '#198754',
                 stack: 'Stack 0',
-                order: 1
-            },
-            {
-                label: 'Other',
-                data: [5, 5, 5, 5, 5, 5, 4],
-                backgroundColor: '#6c757d',
-                stack: 'Stack 0',
-                borderRadius: { topLeft: 4, topRight: 4 },
                 order: 1
             }
         ]
@@ -112,10 +154,10 @@ const Overview = ({ setActiveTab }) => {
     };
 
     const breakdownData = {
-        labels: ['AC', 'Kitchen', 'Laundry', 'Other'],
+        labels: ['Kitchen', 'Laundry', 'AC'],
         datasets: [{
-            data: [45, 30, 15, 10],
-            backgroundColor: ['#0d6efd', '#ffc107', '#198754', '#6c757d'],
+            data: subMeterDonut,
+            backgroundColor: ['#ffc107', '#198754', '#0d6efd'],
             borderWidth: 0,
             cutout: '60%'
         }]
@@ -267,7 +309,9 @@ const Overview = ({ setActiveTab }) => {
                 <div className="col-md-3 col-sm-6">
                     <KPICard
                         title="Live Usage"
-                        value="14.2 kW"
+                        value={energyData?.this_week.total_active_power_kwh
+                            ? energyData.this_week.total_active_power_kwh.toFixed(2)
+                            : "-"}
                         subtext="12%"
                         trend="down"
                         lowerIsBetter={true}
@@ -282,7 +326,7 @@ const Overview = ({ setActiveTab }) => {
                 <div className="col-md-3 col-sm-6">
                     <KPICard
                         title="Efficiency"
-                        value="85/100"
+                        value={energyData?.this_week.efficiency ? (energyData?.this_week.efficiency * 100).toFixed(2) : "-"}
                         subtext="5%"
                         trend="up"
                         icon={TrendingUp}
@@ -374,7 +418,7 @@ const Overview = ({ setActiveTab }) => {
                                 <Doughnut data={breakdownData} options={{ cutout: '70%', plugins: { legend: { display: false } } }} />
                             </div>
                             <div className="w-100 mt-3">
-                                {['AC', 'Kitchen', 'Laundry', 'Other'].map((label, i) => (
+                                {['AC', 'Kitchen', 'Laundry'].map((label, i) => (
                                     <div key={label} className="d-flex justify-content-between align-items-center mb-1 small">
                                         <div className="d-flex align-items-center gap-2">
                                             <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: breakdownData.datasets[0].backgroundColor[i] }}></span>
