@@ -16,6 +16,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
     const [selectedHour, setSelectedHour] = useState(null);
 
     const [breakdownData, setBreakdownData] = useState({ AC: 0, Kitchen: 0, Laundry: 0, Other: 0 });
+
     const [comparisonBreakdownData, setComparisonBreakdownData] = useState(null);
 
     const getMondayByOffset = (weekOffset) => {
@@ -78,7 +79,6 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 const data = await res.json();
                 setEnergyData(data);
             } catch (err) {
-                console.log("Fetch error:", err);
                 setEnergyData([]);
             }
             setLoading(false);

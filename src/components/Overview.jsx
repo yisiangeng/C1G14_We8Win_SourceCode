@@ -53,8 +53,6 @@ const Overview = ({ setActiveTab }) => {
                 const total = meterArray.reduce((sum, value) => sum + value, 0);
                 // Convert each value to percentage
                 const meterPercentages = meterArray.map(value => ((value / total) * 100).toFixed(1)); // 1 decimal place
-                console.log(meterPercentages);
-
                 setSubMeterDonut(meterPercentages);
                 setEnergyPerformance(transformed);
                 setEnergyData(weeklyData);
