@@ -31,8 +31,8 @@ const Overview = ({ setActiveTab }) => {
         const loadAll = async () => {
             try {
                 const [perfRes, weeklyRes] = await Promise.all([
-                    fetch("http://127.0.0.1:8000/get_energy_performance?start_date=2007-12-01"),
-                    fetch("http://127.0.0.1:8000/compare_weeks?start=2007-12-01")
+                    fetch("http://127.0.0.1:8000/get_energy_performance?start_date=2007-11-29"),
+                    fetch("http://127.0.0.1:8000/compare_weeks?start=2007-11-29")
                 ]);
 
                 const perfData = await perfRes.json();
@@ -44,9 +44,9 @@ const Overview = ({ setActiveTab }) => {
                     Laundry: perfData.map(d => d.Sub_metering_2),
                 };
                 const meterArray = [
-                    weeklyData.this_week.sub_metering_1,
-                    weeklyData.this_week.sub_metering_2,
-                    weeklyData.this_week.sub_metering_3
+                    weeklyData.this_week.sub_metering_3, // AC
+                    weeklyData.this_week.sub_metering_1, // Kitchen
+                    weeklyData.this_week.sub_metering_2  // Laundry
                 ];
 
                 // Calculate total
@@ -157,10 +157,10 @@ const Overview = ({ setActiveTab }) => {
     };
 
     const breakdownData = {
-        labels: ['Kitchen', 'Laundry', 'AC'],
+        labels: ['AC', 'Kitchen', 'Laundry'],
         datasets: [{
             data: subMeterDonut,
-            backgroundColor: ['#ffc107', '#198754', '#0d6efd'],
+            backgroundColor: ['#0d6efd', '#ffc107', '#198754'],
             borderWidth: 0,
             cutout: '60%'
         }]
@@ -270,11 +270,7 @@ const Overview = ({ setActiveTab }) => {
     return (
         <div className="container-fluid p-0 h-100 d-flex flex-column gap-3 animate-fade-in-up">
             {/* Header Row */}
-            <div className="d-flex justify-content-between align-items-end mb-2">
-                <div>
-                    <h4 className="fw-bold text-dark mb-0">Overview Dashboard</h4>
-                    <p className="text-muted small mb-0">Real-time energy monitoring & analytics</p>
-                </div>
+            <div className="d-flex justify-content-end align-items-end mb-2">
                 <div className="d-flex align-items-center gap-2 text-muted small bg-white px-3 py-2 rounded border shadow-sm">
                     <Calendar size={14} />
                     {date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

@@ -296,12 +296,28 @@ const UsageBreakdown = ({ setActiveTab }) => {
             const clickedDate = weekLabels[index];
 
             if (selectedBarDate === clickedDate) {
-                // Deselect
+                // Deselect - Revert to default (Dec 5) or latest available
                 setSelectedBarDate(null);
-                const today = new Date();
-                setSelectedDate(formatDateLabel(today));
-                setHourlyViewDate(today.toISOString().split('T')[0]);
-                setComparisonBreakdownData(null);
+
+                const targetDateStr = "2007-12-05";
+                let targetDay = energyData.find(d => d.date === targetDateStr);
+
+                if (!targetDay && energyData.length > 0) {
+                    targetDay = energyData[energyData.length - 1];
+                }
+
+                if (targetDay) {
+                    const targetDateLabel = formatDateLabel(new Date(targetDay.date));
+                    setSelectedDate(targetDateLabel);
+                    setHourlyViewDate(targetDay.date);
+
+                    setBreakdownData({
+                        AC: targetDay.Sub_metering_3,
+                        Kitchen: targetDay.Sub_metering_1,
+                        Laundry: targetDay.Sub_metering_2
+                    });
+                    setComparisonBreakdownData(lastMonthAverage);
+                }
             } else {
                 // Select
                 setSelectedBarDate(clickedDate);
@@ -567,6 +583,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 </div>
                 <div className="card-body" style={{ height: '300px' }}>
                     <Line
+                        key={hourlyViewDate}
                         data={hourlyChartData}
                         options={hourlyOptions}
                     />

@@ -278,13 +278,88 @@ h6 {
   color: var(--primary-dark);
 }
 
-/* Header */
+/* Header Redesign */
 .header-gradient {
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  background: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #065f46 100%);
   color: white;
-  padding: 2.5rem 0 4rem;
-  margin-bottom: -2rem;
+  padding: 3rem 0 5rem;
+  margin-bottom: -3rem;
   position: relative;
+  overflow: hidden;
+}
+
+.header-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 25%),
+    radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.1) 0%, transparent 30%);
+  pointer-events: none;
+}
+
+.header-logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-logo {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+}
+
+.header-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(to right, #ffffff, #d1fae5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-subtitle {
+  color: #a7f3d0;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: white;
+}
+
+.user-account {
+  font-size: 0.875rem;
+  color: #6ee7b7;
+}
+
+.header-icon-box {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon-box:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.header-icon {
+  color: #6ee7b7;
 }
 
 /* Specifics */
@@ -364,6 +439,7 @@ h6 {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: white;
   border-bottom-right-radius: 0.25rem;
+  color: white;
 }
 
 .message.bot {

@@ -17,6 +17,8 @@ import Overview from "./components/Overview";
 import UsageBreakdown from "./components/UsageBreakdown";
 import Chatbot from "./components/Chatbot";
 
+const logo = "/vite.svg";
+
 function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -55,27 +57,30 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+
       <div className="header-gradient">
         <div className="container">
           <div className="flex items-center justify-between">
-            <div>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ fontSize: "2.5rem", fontWeight: "800" }}
-              >
-                WattsUp
-              </h1>
-              <p className="opacity-80 text-lg">
-                Empowering Clean & Affordable Energy (SDG 7)
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="header-logo-container">
+                <img src={logo} alt="WattsUp Logo" className="header-logo" />
+              </div>
+              <div>
+                <h1 className="header-title">
+                  WattsUp
+                </h1>
+                <p className="header-subtitle">
+                  Stay Current, Stay Safe
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-6">
               <div className="text-right hidden md:block">
-                <div className="font-bold text-lg">Welcome, User</div>
-                <div className="text-sm opacity-70">Account: #88291023</div>
+                <div className="user-name">Welcome, User</div>
+                <div className="user-account">Account: #88291023</div>
               </div>
-              <div className="bg-white/10 p-3 rounded-full backdrop-blur-sm border border-white/20">
-                <Zap size={28} className="text-emerald-400" />
+              <div className="header-icon-box">
+                <Zap size={28} className="header-icon" />
               </div>
             </div>
           </div>
@@ -104,9 +109,8 @@ function App() {
             In-time Monitoring
           </button>
           <button
-            className={`nav-item ${
-              activeTab === "usage-breakdown" ? "active" : ""
-            }`}
+            className={`nav-item ${activeTab === "usage-breakdown" ? "active" : ""
+              }`}
             onClick={() => setActiveTab("usage-breakdown")}
           >
             <PieChart size={18} />

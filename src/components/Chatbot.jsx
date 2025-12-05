@@ -151,7 +151,7 @@ const SimpleChatbot = () => {
   const suggestedQuestions = [
     "When is the best hour to use heavy appliances?",
     "Give me a short report of my usage last month.",
-    "How can I reduce my energy bill?",
+    "Why did Dec 1 usage spike?",
     "Forecast my usage for next week.",
   ];
 
@@ -175,13 +175,13 @@ const SimpleChatbot = () => {
       botResponse =
         "# 📊 November 2025 Summary\n## ⚡ Total Usage\n450 kWh\n## 📅 Peak Day\nNov 15 (22 kWh)\n## 💰 Total Cost\nRM 207\n## 📈 vs October\n- ✅ -45 kWh (-9%)\n- 💵 Saved RM 45!\n🎯 **You're doing great! Keep it up!**";
     } else if (
-      lowerText.includes("reduce") ||
-      lowerText.includes("bill") ||
-      lowerText.includes("tips") ||
-      lowerText.includes("save")
+      lowerText.includes("usage") ||
+      lowerText.includes("Dec 1") ||
+      lowerText.includes("Why") ||
+      lowerText.includes("spike")
     ) {
       botResponse =
-        "# 💰 Top 3 Energy-Saving Tips\n## 🌡️ AC Optimization\n- Set to 24°C (saves ~10%)\n- Clean filters monthly\n## 🔌 Eliminate Phantom Load\n- Unplug idle chargers\n- Use smart power strips\n## 💧 Water Heating\n- Use cold water for laundry\n- Saves ~RM 30/month\n✨ **Potential savings: RM 60-100/month!**";
+        "# 💰 Dec 1 usage\n## 🌡️ AC up 62% vs Nov\n- Set to 24°C (saves ~10%)\n- Time to clean filters\n## 🔌 Kitchen up 134% vs Nov\n- Unplug idle chargers\n- Check refrigerator door";
     } else if (
       lowerText.includes("forecast") ||
       lowerText.includes("next week") ||
@@ -235,9 +235,8 @@ const SimpleChatbot = () => {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`message ${msg.sender} ${
-                msg.animated ? "animated" : ""
-              }`}
+              className={`message ${msg.sender} ${msg.animated ? "animated" : ""
+                }`}
             >
               {msg.sender === "bot" ? (
                 <ReactMarkdown>{msg.text}</ReactMarkdown>

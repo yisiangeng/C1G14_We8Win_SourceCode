@@ -73,14 +73,14 @@ const Forecast = () => {
 
     // 2. Efficiency Data (Score 0-100)
     const projectedEfficiency = 99.5;
-    const lastMonthEfficiencyScore = 82.0;
-    const monthToDateEfficiency = 86.2;
+    const lastMonthEfficiencyScore = 99.6;
+    const monthToDateEfficiency = 99.6;
     const efficiencyDiff = ((projectedEfficiency - lastMonthEfficiencyScore) / lastMonthEfficiencyScore * 100).toFixed(1);
     const isEfficiencyImprovement = projectedEfficiency > lastMonthEfficiencyScore;
 
     // Thresholds (Last Month Averages)
     const lastMonthAvgUsage = monthAverage?.average_kwh_per_day ?? 0;
-    const lastMonthAvgEfficiency = 82.0; // Efficiency Score
+    const lastMonthAvgEfficiency = 0.997; // Efficiency Score
 
     //api call
     useEffect(() => {
@@ -248,9 +248,9 @@ const Forecast = () => {
                 },
                 pointRadius: (context) => {
                     const index = context.dataIndex;
-                    return selectedEfficiencyIndex === index ? 6 : 3; // Smaller radius for 24 points
+                    return selectedEfficiencyIndex === index ? 10 : 6; // Smaller radius for 24 points
                 },
-                pointHoverRadius: 6,
+                pointHoverRadius: 10,
                 tension: 0.4,
                 order: 2
             },
