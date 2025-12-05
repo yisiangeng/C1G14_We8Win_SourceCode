@@ -1,48 +1,97 @@
-# TNB Energy Guardian - Project Summary
+# WattsUp ⚡
 
-## Overview
-This project implements a comprehensive energy monitoring dashboard for TNB Malaysia, aligned with SDG 7 (Affordable and Clean Energy). The application is built using React and Vite, featuring a modern, responsive design with real-time data visualization.
+**WattsUp** is a comprehensive energy monitoring and analytics dashboard designed to empower users with real-time insights into their energy consumption. Aligned with **SDG 7 (Affordable and Clean Energy)**, it helps users stay current with their usage patterns and make informed decisions to optimize efficiency.
 
-## Features Implemented
+## 🚀 Features
 
-### 1. Trackers
-- **Month-to-Date Consumption**: Visualized with a prominent card.
-- **Accumulated Fee**: Bill forecaster with projected costs.
-- **Voltage Guardian**: Daily usage line chart.
-- **Weekly Usage**: Bar chart comparison.
+- **Overview Dashboard**: High-level summary of energy performance, including weekly comparisons and daily breakdowns.
+- **Real-time Monitoring**: Live tracking of energy usage to identify immediate spikes or anomalies.
+- **Usage Breakdown**: Detailed analysis of energy consumption by category (e.g., AC, Kitchen, Laundry).
+- **Smart Forecasting**:
+  - **7-Day Energy Forecast**: Predict future consumption to plan ahead.
+  - **24-Hour Efficiency Forecast**: Optimize appliance usage based on predicted efficiency.
+- **Interactive Chatbot**: AI-powered assistant to answer questions about usage, provide tips, and explain anomalies.
 
-### 2. In-time Monitoring (Real-time)
-- **Live Tracking**: Moving sum chart updating every second.
-- **Voltage Monitoring**: Simulates real-time voltage fluctuations (230V-250V).
-- **Spike Detection**: Randomly simulates voltage spikes and triggers a popup alert.
-- **Weather Integration**: Displays current temperature/humidity with alerts for cooling events.
-- **Submeter Disaggregation**: Real-time breakdown of 3 submeters.
+## 🛠️ Tech Stack
 
-### 3. Forecast Dashboard
-- **Efficiency Gauge**: Visual representation of forecast efficiency.
-- **Usage Forecast**: Predicted load curve for the next 24 hours.
-- **Submeter Predictions**: Detailed breakdown of expected usage.
+### Frontend
+- **React** (Vite)
+- **Chart.js** & **React-Chartjs-2** for visualizations
+- **Lucide React** for icons
+- **Bootstrap** & **Custom CSS** for styling
 
-### 4. AI Chatbot Assistant
-- **Interactive Chat**: Users can ask questions about energy saving.
-- **Scenario Simulation**: One-click simulation for Cooking, Laundry, Shower, and Aircond scenarios.
-- **Smart Responses**: Context-aware advice based on keywords.
+### Backend & ML
+- **FastAPI**: Main API for serving ML predictions and energy data (`ML/app.py`).
+- **Flask**: Additional backend services (`backend/run.py`).
+- **Python Libraries**: Pandas, NumPy, Scikit-learn, Statsmodels.
 
-### 5. Statistics & Insights
-- **Usage Breakdown**: Pie chart showing consumption by category.
-- **Smart Tips**: Actionable advice with potential savings.
-- **Savings Calculator**: Interactive tool to estimate monthly savings based on implemented tips.
+## 📋 Prerequisites
 
-## Technology Stack
-- **Framework**: React (Vite)
-- **Styling**: Vanilla CSS (Custom Design System with CSS Variables)
-- **Charts**: Chart.js (via react-chartjs-2)
-- **Icons**: Lucide React
+Ensure you have the following installed:
+- **Node.js** (v16 or higher)
+- **Python** (v3.8 or higher)
+- **npm** (comes with Node.js)
 
-## How to Run
-1. Ensure dependencies are installed: `npm install`
-2. Start the development server: `npm run dev`
-3. Open the browser at the provided URL (usually `http://localhost:5173` or `5174`).
+## ⚙️ Installation
 
-## Design Philosophy
-The interface uses a "Clean Energy" aesthetic with a primary palette of Emerald Green and TNB Blue. It features glassmorphism effects, smooth transitions, and a card-based layout for clarity and visual appeal.
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd C1G14_We8Win_SourceCode
+    ```
+
+2.  **Install Frontend Dependencies**:
+    ```bash
+    npm install
+    ```
+
+3.  **Install Backend Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+## ▶️ Running the Application
+
+The easiest way to run the entire stack (Frontend + Backend + ML Server) is using the provided script:
+
+```bash
+python run_all.py
+```
+
+This script will automatically start:
+1.  **Flask Backend**
+2.  **FastAPI ML Server** (Port 8000)
+3.  **Vite Frontend** (Port 5173)
+
+Access the application at: `http://localhost:5173`
+
+## 📂 Project Structure
+
+```
+├── ML/                     # Machine Learning models & FastAPI app
+│   ├── app.py              # Main FastAPI entry point
+│   ├── predictor.py        # Energy prediction logic
+│   └── ...
+├── backend/                # Flask backend service
+├── src/                    # React Frontend source code
+│   ├── components/         # UI Components (Overview, Monitoring, etc.)
+│   ├── App.jsx             # Main application component
+│   └── ...
+├── public/                 # Static assets
+├── run_all.py              # Startup script for all services
+└── requirements.txt        # Python dependencies
+```
+
+## 🔌 API Endpoints (FastAPI)
+
+The ML server runs on `http://localhost:8000`. Key endpoints include:
+
+- `GET /compare_weeks`: Compare current week's usage vs last week.
+- `GET /get_energy_performance`: Get daily sub-metering breakdown.
+- `GET /predict_next_7_days`: 7-day energy consumption forecast.
+- `GET /predict_next_24_hours`: Hourly energy forecast for the next day.
+- `GET /efficiency_24_hours`: 24-hour efficiency trend.
+- `GET /get_month_average`: Monthly energy usage summary.
+
+---
+*Promoting Sustainable Energy for a Better Future.*
