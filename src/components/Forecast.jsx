@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Bar, Line } from 'react-chartjs-2';
 import { ArrowUp, ArrowDown, DollarSign, Calendar, Clock, Zap, Activity, TrendingUp } from 'lucide-react';
 import {
@@ -37,6 +37,30 @@ const Forecast = () => {
     const [efficiencyTimeRange, setEfficiencyTimeRange] = useState('week'); // 'week' | 'day'
     const [selectedUsageIndex, setSelectedUsageIndex] = useState(null);
     const [selectedEfficiencyIndex, setSelectedEfficiencyIndex] = useState(null);
+    const [forecastList, setForecastList] = useState([]);
+    const [forecastList24Hours, setForecastList24Hours] = useState([]);
+    const [monthAverage, setMonthAverage] = useState(null);
+    const [efficiency7D, setEfficiency7D] = useState([]);
+    const [efficiency24H, setEfficiency24H] = useState([]);
+
+    //Convert API response to a list
+    const transformForecast = (data) => {
+        const dates = data.Date;
+        const values = data.Predicted_Daily_Energy_kWh;
+
+        return Object.keys(values).map((key) => ({
+            date: dates[key],
+            value: values[key]
+        }));
+    };
+
+    const transformHourlyForecast = (data) => {
+        return data.forecast.map((item) => ({
+            date: new Date(item.Date),
+            value: item.Predicted_Hourly_Energy_kWh
+        }));
+    };
+
 
     // --- Mock Data & Logic ---
 
@@ -48,42 +72,84 @@ const Forecast = () => {
     const isBillIncrease = projectedBill > lastMonthBill;
 
     // 2. Efficiency Data (Score 0-100)
-    const projectedEfficiency = 88.5;
+    const projectedEfficiency = 99.5;
     const lastMonthEfficiencyScore = 82.0;
     const monthToDateEfficiency = 86.2;
     const efficiencyDiff = ((projectedEfficiency - lastMonthEfficiencyScore) / lastMonthEfficiencyScore * 100).toFixed(1);
     const isEfficiencyImprovement = projectedEfficiency > lastMonthEfficiencyScore;
 
     // Thresholds (Last Month Averages)
-    const lastMonthAvgUsage = 15.5; // Daily Avg kWh
+    const lastMonthAvgUsage = monthAverage?.average_kwh_per_day ?? 0;
     const lastMonthAvgEfficiency = 82.0; // Efficiency Score
 
-    // Labels
-    const next7Days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    // Generate 24 hour labels: 00:00 to 23:00
-    const next24Hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    //api call
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const resForecast = await fetch("http://127.0.0.1:8000/predict_next_7_days");
+                const jsonForecast = await resForecast.json();
+                const transformed = transformForecast(jsonForecast.forecast);
+                setForecastList(transformed);
+
+                const resForecast24Hours = await fetch("http://127.0.0.1:8000/predict_next_24_hours");
+                const jsonForecast24Hours = await resForecast24Hours.json();
+                const transformed24Hours = transformHourlyForecast(jsonForecast24Hours)
+                setForecastList24Hours(transformed24Hours)
+
+                // 7-day efficiency forecast
+                const resEfficiency7D = await fetch("http://127.0.0.1:8000/efficiency_7_days");
+                const jsonEfficiency7D = await resEfficiency7D.json();
+                const transformedEfficiency7D = jsonEfficiency7D.map(item => ({
+                    date: new Date(item.date),
+                    value: item.Predicted_Efficiency
+                }));
+                setEfficiency7D(transformedEfficiency7D);
+
+                // 24-hour efficiency forecast
+                const resEfficiency24H = await fetch("http://127.0.0.1:8000/efficiency_24_hours");
+                const jsonEfficiency24H = await resEfficiency24H.json();
+                const transformedEfficiency24H = jsonEfficiency24H.map(item => ({
+                    datetime: new Date(item.datetime),
+                    value: item.Power_factor_pred
+                }));
+                setEfficiency24H(transformedEfficiency24H);
+
+
+                const resMonth = await fetch(
+                    "http://127.0.0.1:8000/get_month_average?start_date=2007-12-01"
+                );
+                const jsonMonth = await resMonth.json();
+                setMonthAverage(jsonMonth);
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     // Usage Data Generation
     const usageDataValues = useMemo(() => {
         if (usageTimeRange === 'week') {
-            return [14, 16.5, 13, 18, 15, 12, 14.5];
+            return forecastList.length > 0
+                ? forecastList.map(item => Number(item.value.toFixed(2)))
+                : [];
         } else {
-            // Generate 24 hourly data points around the hourly average (0.65)
-            // Range: 0.2 to 1.1
-            return Array.from({ length: 24 }, () => (Math.random() * 0.9 + 0.2).toFixed(2));
+            return forecastList24Hours.length > 0
+                ? forecastList24Hours.map(item => Number(item.value.toFixed(2)))
+                : [];
         }
-    }, [usageTimeRange]);
+    }, [usageTimeRange, forecastList, forecastList24Hours]);
 
     // Efficiency Data Generation
     const efficiencyDataValues = useMemo(() => {
         if (efficiencyTimeRange === 'week') {
-            return [85, 80, 88, 75, 82, 90, 84];
+            return efficiency7D.length > 0 ? efficiency7D.map(item => Number(item.value.toFixed(4))) : [];
         } else {
-            // Generate 24 hourly data points around the efficiency average (82)
-            // Range: 70 to 95
-            return Array.from({ length: 24 }, () => Math.floor(Math.random() * 25 + 70));
+            return efficiency24H.length > 0 ? efficiency24H.map(item => Number(item.value.toFixed(4))) : [];
         }
-    }, [efficiencyTimeRange]);
+    }, [efficiencyTimeRange, efficiency24H, efficiency7D]);
 
     // Thresholds
     // For 'day' view (hourly), we use hourly average.
@@ -92,10 +158,41 @@ const Forecast = () => {
 
 
     // --- Chart Configurations ---
+    const usageLabels = useMemo(() => {
+        if (usageTimeRange === "week") {
+            return forecastList.length > 0
+                ? forecastList.map((item, index) => {
+                    // Hardcoded start date: Dec 6
+                    const d = new Date("2023-12-06");
+                    d.setDate(d.getDate() + index);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    // → "Dec 6"
+                })
+                : [];
+        } else {
+            return forecastList24Hours.map(d => `${d.date.getHours().toString().padStart(2, '0')}:00`);
+        }
+    }, [usageTimeRange, forecastList, forecastList24Hours]);
+
+    const efficiencyLabels = useMemo(() => {
+        if (efficiencyTimeRange === "week") {
+            return efficiency7D.length > 0
+                ? efficiency7D.map((item, index) => {
+                    // Hardcoded start date: Dec 6
+                    const d = new Date("2023-12-06");
+                    d.setDate(d.getDate() + index);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    // → "Dec 6"
+                })
+                : [];
+        } else {
+            return efficiency24H.map(d => `${d.datetime.getHours().toString().padStart(2, '0')}:00`);
+        }
+    }, [efficiencyTimeRange, efficiency24H, efficiency7D]);
 
     // 1. Projected Usage Chart Data
     const usageChartData = {
-        labels: usageTimeRange === 'week' ? next7Days : next24Hours,
+        labels: usageLabels,
         datasets: [
             {
                 type: 'bar',
@@ -118,7 +215,7 @@ const Forecast = () => {
                 type: 'line',
                 label: 'Last Month Avg',
                 data: Array(usageDataValues.length).fill(currentUsageThreshold),
-                borderColor: '#6B7280', // Gray color
+                borderColor: '#fd7e14', // Orange color
                 borderWidth: 2,
                 borderDash: [5, 5],
                 pointRadius: 0,
@@ -130,7 +227,7 @@ const Forecast = () => {
 
     // 2. Projected Efficiency Chart Data
     const efficiencyChartData = {
-        labels: efficiencyTimeRange === 'week' ? next7Days : next24Hours,
+        labels: efficiencyLabels,
         datasets: [
             {
                 type: 'line',
@@ -161,7 +258,7 @@ const Forecast = () => {
                 type: 'line',
                 label: 'Last Month Avg',
                 data: Array(efficiencyDataValues.length).fill(currentEfficiencyThreshold),
-                borderColor: '#6B7280', // Gray color
+                borderColor: '#fd7e14', // Orange color
                 borderWidth: 2,
                 borderDash: [5, 5],
                 pointRadius: 0,
@@ -251,6 +348,25 @@ const Forecast = () => {
             }
         }
     };
+
+    const efficiencyOptions = {
+        ...commonOptions,
+        scales: {
+            ...commonOptions.scales, // keep existing x-axis
+            y: {
+                ...commonOptions.scales.y, // keep common y settings
+                beginAtZero: false,
+                min: 0.9,
+                max: 1,
+                ticks: {
+                    ...commonOptions.scales.y.ticks,
+                    stepSize: 0.02,
+                    callback: (value) => (value * 100).toFixed(0) + '%'
+                }
+            }
+        }
+    };
+
 
     return (
         <div className="container-fluid p-0 d-flex flex-column gap-4 animate-fade-in-up">
@@ -383,7 +499,7 @@ const Forecast = () => {
                         id="efficiencyChart"
                         data={efficiencyChartData}
                         options={{
-                            ...commonOptions,
+                            ...efficiencyOptions,
                             onClick: handleEfficiencyClick
                         }}
                     />

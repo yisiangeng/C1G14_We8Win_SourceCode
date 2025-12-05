@@ -75,15 +75,20 @@ const Overview = ({ setActiveTab }) => {
     };
 
     // Helper to get last 7 days dates
-    const getLast7Days = () => {
+    // Helper to get last 7 days dates
+    const get7DaysFrom = (startDateStr) => {
+        const startDate = new Date(startDateStr); // e.g. "2007-11-29"
         const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            days.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            days.push(`${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })}`); // "29 Nov"
         }
+
         return days;
     };
+    const next7Days = get7DaysFrom("2007-11-29");
 
     // Stacked Bar Chart for Weekly Performance
     // Build last week avg array dynamically using state
@@ -92,7 +97,7 @@ const Overview = ({ setActiveTab }) => {
         : Array(7).fill(0);
 
     const performanceData = {
-        labels: getLast7Days(),
+        labels: next7Days,
         datasets: [
             {
                 type: 'line',
@@ -287,7 +292,7 @@ const Overview = ({ setActiveTab }) => {
                             <div className="vr opacity-25"></div>
                             <div className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
                                 <span className="badge bg-danger">High Usage</span>
-                                <span className="small text-dark fw-medium text-truncate">Kitchen usage is 50% higher than average. Check appliances.</span>
+                                <span className="small text-dark fw-medium text-truncate">1 Dec Usage is 62% higher than average. Check appliances.</span>
                             </div>
                             <button
                                 className="btn btn-sm btn-link text-danger p-0 text-decoration-none small fw-bold"

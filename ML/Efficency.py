@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 # 2. Load dataset
 # ==========================================
 
-data = pd.read_excel("household_power_cleaned.xlsx")
+data = pd.read_excel(r"C:\Users\LeYu267\Documents\Adrian\SDG Hackathon\C1G14_We8Win_SourceCode\ML\household_power_cleaned.xlsx")
 
 
 # ==========================================

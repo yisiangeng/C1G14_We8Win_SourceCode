@@ -15,16 +15,19 @@ const UsageBreakdown = ({ setActiveTab }) => {
     const [hourlyViewDate, setHourlyViewDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedHour, setSelectedHour] = useState(null);
 
-    const [breakdownData, setBreakdownData] = useState({ AC: 0, Kitchen: 0, Laundry: 0, Other: 0 });
-
+    const [breakdownData, setBreakdownData] = useState({ AC: 0, Kitchen: 0, Laundry: 0 });
     const [comparisonBreakdownData, setComparisonBreakdownData] = useState(null);
 
     const getMondayByOffset = (weekOffset) => {
-        // HARD-CODE dataset's latest Monday
-        const referenceMonday = new Date("2007-12-16");
-        const monday = new Date(referenceMonday);
-        monday.setDate(referenceMonday.getDate() - weekOffset * 7);
-        return monday.toISOString().split("T")[0];
+        // HARD-CODE dataset's latest reference date (Nov 29)
+        const referenceDate = new Date("2007-11-29");
+        const startDate = new Date(referenceDate);
+        startDate.setDate(referenceDate.getDate() - weekOffset * 7);
+        return startDate.toISOString().split("T")[0];
+    };
+
+    const formatDateLabel = (dateObj) => {
+        return `${dateObj.getDate()} ${dateObj.toLocaleString('en-US', { month: 'short' })}`;
     };
 
     const getWeekDates = (offset) => {
@@ -34,7 +37,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
         for (let i = 0; i < 7; i++) {
             const d = new Date(monday);
             d.setDate(monday.getDate() + i);
-            days.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            days.push(formatDateLabel(d));
         }
         return days;
     };
@@ -76,6 +79,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 const res = await fetch(
                     `http://127.0.0.1:8000/get_energy_performance?start_date=${startDate}`
                 );
+
                 const data = await res.json();
                 setEnergyData(data);
             } catch (err) {
@@ -93,32 +97,90 @@ const UsageBreakdown = ({ setActiveTab }) => {
 
 
     // Define static hourly data structure for lookup
-    const generateHourlyData = (dateStr) => {
+    // Define static hourly data structure for lookup
+    const generateHourlyData = (dateStr, dailyTotal = 0) => {
         const data = {};
+        let generatedTotal = { AC: 0, Kitchen: 0, Laundry: 0 };
+
+        // First pass: generate random proportions
         hourLabels.forEach((hour, i) => {
-            const seed = dateStr + hour; // Unique seed per date and hour
+            const seed = dateStr + hour;
             data[hour] = {
-                AC: Math.max(1, (pseudoRandom(seed + 'AC') * 5 + 2).toFixed(1)),
-                Kitchen: Math.max(0.5, (pseudoRandom(seed + 'Kitchen') * 3 + 1).toFixed(1)),
-                Laundry: Math.max(0.2, (pseudoRandom(seed + 'Laundry') * 2 + 0.5).toFixed(1)),
-                Other: (pseudoRandom(seed + 'Other') * 1 + 0.5).toFixed(1)
+                AC: pseudoRandom(seed + 'AC'),
+                Kitchen: pseudoRandom(seed + 'Kitchen'),
+                Laundry: pseudoRandom(seed + 'Laundry')
             };
+            generatedTotal.AC += data[hour].AC;
+            generatedTotal.Kitchen += data[hour].Kitchen;
+            generatedTotal.Laundry += data[hour].Laundry;
         });
+
+        // Second pass: normalize to match dailyTotal
+        // If dailyTotal is 0, everything is 0.
+        // We need to know the breakdown of dailyTotal (AC, Kitchen, Laundry)
+        // But we only have the *total* daily kWh passed here? 
+        // Actually, we can get the breakdown from energyData for the selected day.
+        // Let's assume dailyTotal is an object { AC, Kitchen, Laundry }
+
+        hourLabels.forEach((hour) => {
+            data[hour].AC = generatedTotal.AC ? (data[hour].AC / generatedTotal.AC * dailyTotal.AC).toFixed(2) : 0;
+            data[hour].Kitchen = generatedTotal.Kitchen ? (data[hour].Kitchen / generatedTotal.Kitchen * dailyTotal.Kitchen).toFixed(2) : 0;
+            data[hour].Laundry = generatedTotal.Laundry ? (data[hour].Laundry / generatedTotal.Laundry * dailyTotal.Laundry).toFixed(2) : 0;
+        });
+
         return data;
     };
 
-    const hourlyDataMap = useMemo(() => generateHourlyData(hourlyViewDate), [hourlyViewDate]);
+    const selectedDayTotal = useMemo(() => {
+        const dayData = energyData.find(d => {
+            const dDate = formatDateLabel(new Date(d.date));
+            return dDate === selectedDate;
+        });
+        if (dayData) {
+            return {
+                AC: dayData.Sub_metering_3,
+                Kitchen: dayData.Sub_metering_1,
+                Laundry: dayData.Sub_metering_2
+            };
+        }
+        return { AC: 0, Kitchen: 0, Laundry: 0 };
+    }, [energyData, selectedDate]);
 
-    // Last Month Average Data (Simulated)
-    // Assuming a constant average for simplicity, or we could vary it slightly.
-    // Let's use a fixed average for daily total and submeters to represent "Last Month's Average".
+    const hourlyDataMap = useMemo(() => generateHourlyData(hourlyViewDate, selectedDayTotal), [hourlyViewDate, selectedDayTotal]);
+
     const lastMonthAverage = useMemo(() => ({
-        total: 55, // Average daily total
-        AC: 25,
-        Kitchen: 18,
-        Laundry: 8,
-        Other: 4
+        total: 17, // Average daily total
+        AC: 11,
+        Kitchen: 4,
+        Laundry: 6
     }), []);
+
+    // Auto-select latest day when data loads
+    useEffect(() => {
+        if (energyData && energyData.length > 0) {
+            // Default to Dec 5 (2007-12-05) if available, otherwise latest
+            const targetDateStr = "2007-12-05";
+            let targetDay = energyData.find(d => d.date === targetDateStr);
+
+            if (!targetDay) {
+                targetDay = energyData[energyData.length - 1];
+            }
+
+            const targetDateLabel = formatDateLabel(new Date(targetDay.date));
+
+            setSelectedBarDate(null); // Keep chart unselected visually
+            setSelectedDate(targetDateLabel);
+
+            setBreakdownData({
+                AC: targetDay.Sub_metering_3,
+                Kitchen: targetDay.Sub_metering_1,
+                Laundry: targetDay.Sub_metering_2
+            });
+            setComparisonBreakdownData(lastMonthAverage);
+            setHourlyViewDate(targetDay.date);
+            setSelectedHour(null);
+        }
+    }, [energyData, lastMonthAverage]);
 
     // Chart Data Objects (Visuals)
     // Chart Data Objects (Visuals)
@@ -129,38 +191,42 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 label: 'AC',
                 data: weekLabels.map(date => {
                     const dayData = energyData.find(d => {
-                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const dDate = formatDateLabel(new Date(d.date));
                         return dDate === date;
                     });
                     return dayData ? dayData.Sub_metering_3 : 0;
                 }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#0d6efd' : 'rgba(13, 110, 253, 0.3)'),
                 stack: 'Stack 0',
+                order: 1
             },
             {
                 label: 'Kitchen',
                 data: weekLabels.map(date => {
                     const dayData = energyData.find(d => {
-                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const dDate = formatDateLabel(new Date(d.date));
                         return dDate === date;
                     });
                     return dayData ? dayData.Sub_metering_1 : 0;
                 }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#ffc107' : 'rgba(255, 193, 7, 0.3)'),
                 stack: 'Stack 0',
+                order: 1
             },
             {
                 label: 'Laundry',
                 data: weekLabels.map(date => {
                     const dayData = energyData.find(d => {
-                        const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const dDate = formatDateLabel(new Date(d.date));
                         return dDate === date;
                     });
                     return dayData ? dayData.Sub_metering_2 : 0;
                 }),
                 backgroundColor: weekLabels.map(date => selectedBarDate === null || date === selectedBarDate ? '#198754' : 'rgba(25, 135, 84, 0.3)'),
                 stack: 'Stack 0',
-            }
+                order: 1
+            },
+
         ]
     };
 
@@ -173,7 +239,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 // Sum of all categories for the line chart total
                 data: hourLabels.map(hour => {
                     const d = hourlyDataMap[hour];
-                    return (parseFloat(d.AC) + parseFloat(d.Kitchen) + parseFloat(d.Laundry) + parseFloat(d.Other)).toFixed(2);
+                    return (parseFloat(d.AC) + parseFloat(d.Kitchen) + parseFloat(d.Laundry)).toFixed(2);
                 }),
                 borderColor: selectedHour === null ? '#0d6efd' : 'rgba(13, 110, 253, 0.2)',
                 backgroundColor: selectedHour === null ? 'rgba(13, 110, 253, 0.1)' : 'rgba(13, 110, 253, 0.05)',
@@ -183,7 +249,19 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 pointBorderWidth: hourLabels.map(hour => hour === selectedHour ? 2 : 1),
                 fill: true,
                 tension: 0.4,
-                pointHoverRadius: 6
+                pointHoverRadius: 6,
+                order: 2
+            },
+            {
+                label: 'Last Month Avg',
+                data: Array(24).fill((lastMonthAverage.total / 24).toFixed(2)),
+                borderColor: '#fd7e14', // Orange color to match weekly
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+                order: 1
             }
         ]
     };
@@ -191,33 +269,26 @@ const UsageBreakdown = ({ setActiveTab }) => {
     // --- Chart Options & Handlers ---
 
     // Plugin to draw Last Month Average overlay on Weekly Chart
-    const lastMonthAveragePlugin = {
-        id: 'lastMonthAverageOverlay',
-        afterDatasetsDraw(chart, args, options) {
-            const { ctx, scales: { x, y }, chartArea: { left, right } } = chart;
+    const horizontalLinePlugin = {
+        id: 'horizontalLine',
+        afterDraw: (chart) => {
+            const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+            const yValue = y.getPixelForValue(lastMonthAverage.total);
 
-            const avgTotal = lastMonthAverage.total;
-            const yPos = y.getPixelForValue(avgTotal);
-
-            // Draw a single continuous line across the entire chart
-            ctx.save();
-            ctx.beginPath();
-            ctx.strokeStyle = '#fd7e14'; // Orange color
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 3]);
-            ctx.moveTo(left, yPos);
-            ctx.lineTo(right, yPos);
-            ctx.stroke();
-
-            // Add label at the right end of the line
-            ctx.fillStyle = '#fd7e14';
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(`Avg: ${avgTotal} kWh`, right - 5, yPos - 5);
-
-            ctx.restore();
+            if (yValue) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = '#fd7e14';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(left, yValue);
+                ctx.lineTo(right, yValue);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
     };
+
 
     const handleWeeklyChartClick = (event, elements) => {
         if (elements.length > 0) {
@@ -228,7 +299,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 // Deselect
                 setSelectedBarDate(null);
                 const today = new Date();
-                setSelectedDate(today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                setSelectedDate(formatDateLabel(today));
                 setHourlyViewDate(today.toISOString().split('T')[0]);
                 setComparisonBreakdownData(null);
             } else {
@@ -238,7 +309,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
 
                 // Update breakdown data
                 const selectedDayData = energyData.find(d => {
-                    const dDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const dDate = formatDateLabel(new Date(d.date));
                     return dDate === clickedDate;
                 });
 
@@ -246,8 +317,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                     setBreakdownData({
                         AC: selectedDayData.Sub_metering_3,
                         Kitchen: selectedDayData.Sub_metering_1,
-                        Laundry: selectedDayData.Sub_metering_2,
-                        Other: 0
+                        Laundry: selectedDayData.Sub_metering_2
                     });
                     // Set comparison data to Last Month Average
                     setComparisonBreakdownData(lastMonthAverage);
@@ -271,12 +341,11 @@ const UsageBreakdown = ({ setActiveTab }) => {
             if (selectedHour === clickedHour) {
                 // Deselect
                 setSelectedHour(null);
-                let dailyTotal = { AC: 0, Kitchen: 0, Laundry: 0, Other: 0 };
+                let dailyTotal = { AC: 0, Kitchen: 0, Laundry: 0 };
                 Object.values(hourlyDataMap).forEach(h => {
                     dailyTotal.AC += parseFloat(h.AC);
                     dailyTotal.Kitchen += parseFloat(h.Kitchen);
                     dailyTotal.Laundry += parseFloat(h.Laundry);
-                    dailyTotal.Other += parseFloat(h.Other);
                 });
                 setBreakdownData(dailyTotal);
 
@@ -294,8 +363,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                     setBreakdownData({
                         AC: parseFloat(hourlyDataMap[clickedHour].AC),
                         Kitchen: parseFloat(hourlyDataMap[clickedHour].Kitchen),
-                        Laundry: parseFloat(hourlyDataMap[clickedHour].Laundry),
-                        Other: parseFloat(hourlyDataMap[clickedHour].Other)
+                        Laundry: parseFloat(hourlyDataMap[clickedHour].Laundry)
                     });
                 }
 
@@ -306,8 +374,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 const hourlyAvg = {
                     AC: lastMonthAverage.AC / 24,
                     Kitchen: lastMonthAverage.Kitchen / 24,
-                    Laundry: lastMonthAverage.Laundry / 24,
-                    Other: lastMonthAverage.Other / 24
+                    Laundry: lastMonthAverage.Laundry / 24
                 };
                 setComparisonBreakdownData(hourlyAvg);
             }
@@ -360,22 +427,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
 
     return (
         <div className="container-fluid p-0 h-100 d-flex flex-column gap-4 animate-fade-in-up">
-            {/* Header */}
-            <div className="d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center gap-3">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                        style={{ width: '40px', height: '40px' }}
-                    >
-                        <ArrowLeft size={20} />
-                    </button>
-                    <div>
-                        <h4 className="fw-bold text-dark mb-0">Usage Breakdown</h4>
-                        <p className="text-muted small mb-0">Detailed analysis of your energy consumption</p>
-                    </div>
-                </div>
-            </div>
+
 
             {/* 1. Weekly Usage Breakdown Bar Chart (Top) */}
             <div className="card border-0 shadow-sm">
@@ -411,7 +463,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                     <Bar
                         data={weeklyChartData}
                         options={weeklyOptions}
-                        plugins={[lastMonthAveragePlugin]}
+                        plugins={[horizontalLinePlugin]}
                     />
                 </div>
                 <div className="card-footer bg-light border-0 d-flex justify-content-between align-items-center text-muted small py-2 px-4">
@@ -429,7 +481,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                     <div className="d-flex align-items-center justify-content-between mb-4">
                         <h5 className="fw-bold mb-0 d-flex align-items-center gap-2">
                             <PieChart size={20} className="text-success" />
-                            Breakdown for {selectedHour ? `${hourlyViewDate} @ ${selectedHour}` : selectedDate}
+                            Breakdown ({selectedHour ? `${formatDateLabel(new Date(hourlyViewDate))} @ ${selectedHour}` : selectedDate})
                         </h5>
                         <div className="d-flex gap-2">
                             {Object.entries(breakdownData).map(([key, value]) => (
@@ -495,7 +547,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                 <div className="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
                     <h5 className="fw-bold mb-0 d-flex align-items-center gap-2">
                         <Clock size={20} className="text-primary" />
-                        Hourly Usage ({hourlyViewDate})
+                        Hourly Usage ({formatDateLabel(new Date(hourlyViewDate))})
                     </h5>
 
                     {/* Date Picker */}
@@ -505,7 +557,7 @@ const UsageBreakdown = ({ setActiveTab }) => {
                         value={hourlyViewDate}
                         onChange={(e) => {
                             setHourlyViewDate(e.target.value);
-                            setSelectedDate(new Date(e.target.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                            setSelectedDate(formatDateLabel(new Date(e.target.value)));
                             setSelectedHour(null);
                             setSelectedBarDate(null); // Deselect bar if manually changing date
                             setComparisonBreakdownData(null); // Reset comparison
